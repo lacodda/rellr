@@ -34,3 +34,4 @@ pub const RELLR_FILE_IS_MISSING: &str = "The rellr configuration file is missing
 pub const RELLR_FILE_IS_ALREADY_CREATED: &str = "The rellr configuration file has already been created";
 pub const RELLR_FILE_WAS_CREATED: &str = "The rellr configuration file was created successfully";
 pub const RELLR_INIT_HELP: &str = "To create a configuration file, run the command: `rellr init -n <your-project-name> -v <your-project-version>`";
+pub const NEXT: &str = "Next version:";

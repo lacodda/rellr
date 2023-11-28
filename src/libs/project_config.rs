@@ -1,5 +1,6 @@
 use super::msg;
 use crate::commands::init::InitArgs;
+use crate::commands::next::UpdateType;
 use crate::libs::msg::Msg;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
@@ -16,7 +17,7 @@ pub struct ProjectConfig {
 
 impl ProjectConfig {
     pub fn new(init_args: InitArgs) -> Self {
-        Self {  
+        Self {
             name: init_args.name,
             version: init_args.version,
         }
@@ -45,5 +46,24 @@ impl ProjectConfig {
         }
 
         Ok(Self::new(init_args))
+    }
+
+    pub fn up_version(&mut self, update_type: &UpdateType) -> &mut Self {
+        let mut version_vec: Vec<u32> = self.version.split(".").filter_map(|s| s.parse().ok()).collect();
+        version_vec = match update_type {
+            UpdateType::Patch => Self::increment(version_vec, 2),
+            UpdateType::Minor => Self::increment(version_vec, 1),
+            UpdateType::Major => Self::increment(version_vec, 0),
+        };
+
+        self.version = version_vec.iter().map(|&n| n.to_string()).collect::<Vec<String>>().join(".");
+        self
+    }
+
+    fn increment(mut version_vec: Vec<u32>, index: usize) -> Vec<u32> {
+        if let Some(value) = version_vec.get_mut(index) {
+            *value += 1;
+        }
+        version_vec
     }
 }
