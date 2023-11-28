@@ -1,7 +1,8 @@
 mod commands;
 use clap::{Parser, Subcommand};
-use commands::{next, release, reset};
+use commands::{init, next, release, reset};
 use std::error::Error;
+mod libs;
 
 #[derive(Debug, Parser)]
 #[command(author, version, about, long_about = None)]
@@ -13,6 +14,8 @@ struct Cli {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
+    #[command(about = "Configuration initialization", arg_required_else_help = true)]
+    Init(init::InitArgs),
     #[command(about = "Create a new release", arg_required_else_help = true)]
     Next(next::NextArgs),
     #[command(about = "Release", arg_required_else_help = true)]
@@ -25,6 +28,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::Init(args) => init::cmd(args),
         Commands::Next(args) => next::cmd(args),
         Commands::Release(args) => release::cmd(args),
         Commands::Reset(args) => reset::cmd(args),
