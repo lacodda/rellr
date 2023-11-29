@@ -63,6 +63,10 @@ impl ProjectConfig {
     fn increment(mut version_vec: Vec<u32>, index: usize) -> Vec<u32> {
         if let Some(value) = version_vec.get_mut(index) {
             *value += 1;
+
+            for i in (index + 1)..version_vec.len() {
+                version_vec[i] = 0;
+            }
         }
         version_vec
     }
