@@ -1,4 +1,8 @@
-use crate::libs::{project_config::ProjectConfig, msg::{Msg, self}, git::{Git, BranchType}};
+use crate::libs::{
+    git::Git,
+    msg::{self, Msg},
+    project_config::ProjectConfig,
+};
 use clap::{Args, ValueEnum};
 use std::error::Error;
 
@@ -20,8 +24,12 @@ pub enum UpdateType {
 
 pub fn cmd(next_args: NextArgs) -> Result<(), Box<dyn Error>> {
     let mut project_config = ProjectConfig::get()?;
-    project_config.up_version(&next_args.update_type).save()?;
-    let _ = Git::new(&project_config.version).branch(BranchType::Release)?;
-    Msg::new(&format!("{} {}", &msg::NEXT, &project_config.version)).info();
+    project_config = project_config.up_version(&next_args.update_type)?;
+    project_config.save()?;
+
+    Git::repo(&project_config).branch()?.checkout()?;
+
+    Msg::new(&format!("{} {}", &msg::NEXT, &project_config.next.unwrap())).info();
+
     Ok(())
 }

@@ -1,3 +1,4 @@
+use super::git::BranchType;
 use super::msg;
 use crate::commands::init::InitArgs;
 use crate::commands::next::UpdateType;
@@ -12,14 +13,25 @@ pub const PROJECT_CONFIG: &str = "rellr.json";
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct ProjectConfig {
     pub name: String,
-    pub version: String,
+    pub current: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next: Option<String>,
+    #[serde(skip)]
+    pub prev: Option<String>,
+    #[serde(skip)]
+    pub branch_type: BranchType,
+    pub main_branch: String,
 }
 
 impl ProjectConfig {
     pub fn new(init_args: InitArgs) -> Self {
         Self {
             name: init_args.name,
-            version: init_args.version,
+            current: init_args.version,
+            next: None,
+            prev: None,
+            branch_type: BranchType::Release,
+            main_branch: "main".into(),
         }
     }
 
@@ -48,16 +60,22 @@ impl ProjectConfig {
         Ok(Self::new(init_args))
     }
 
-    pub fn up_version(&mut self, update_type: &UpdateType) -> &mut Self {
-        let mut version_vec: Vec<u32> = self.version.split(".").filter_map(|s| s.parse().ok()).collect();
+    pub fn up_version(&mut self, update_type: &UpdateType) -> Result<Self, Box<dyn Error>> {
+        let mut version_vec: Vec<u32> = self.current.split(".").filter_map(|s| s.parse().ok()).collect();
         version_vec = match update_type {
             UpdateType::Patch => Self::increment(version_vec, 2),
             UpdateType::Minor => Self::increment(version_vec, 1),
             UpdateType::Major => Self::increment(version_vec, 0),
         };
+        let next = version_vec.iter().map(|&n| n.to_string()).collect::<Vec<String>>().join(".");
 
-        self.version = version_vec.iter().map(|&n| n.to_string()).collect::<Vec<String>>().join(".");
-        self
+        if self.next.clone().is_some_and(|n: String| n == next) {
+            Msg::new(msg::RELEASE_ALREADY_EXISTS).warn().exit()
+        }
+
+        self.prev = self.next.clone();
+        self.next = Some(next);
+        Ok(self.to_owned())
     }
 
     fn increment(mut version_vec: Vec<u32>, index: usize) -> Vec<u32> {
