@@ -1,6 +1,6 @@
 mod commands;
 use clap::{Parser, Subcommand};
-use commands::{init, next, release, reset};
+use commands::{feat, fix, init, next, release, reset};
 use std::error::Error;
 mod libs;
 
@@ -18,6 +18,10 @@ enum Commands {
     Init(init::InitArgs),
     #[command(about = "Create a new release", arg_required_else_help = true)]
     Next(next::NextArgs),
+    #[command(about = "Feature", arg_required_else_help = true)]
+    Feat(feat::FeatArgs),
+    #[command(about = "Hotfix", arg_required_else_help = true)]
+    Fix(fix::FixArgs),
     #[command(about = "Release", arg_required_else_help = true)]
     Release(release::ReleaseArgs),
     #[command(about = "Remove last commit", arg_required_else_help = true)]
@@ -30,6 +34,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     match cli.command {
         Commands::Init(args) => init::cmd(args),
         Commands::Next(args) => next::cmd(args),
+        Commands::Feat(args) => feat::cmd(args),
+        Commands::Fix(args) => fix::cmd(args),
         Commands::Release(args) => release::cmd(args),
         Commands::Reset(args) => reset::cmd(args),
     }

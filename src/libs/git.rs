@@ -47,51 +47,56 @@ impl Git {
         Ok(repo)
     }
 
-    pub fn rename_or_new_branch(&mut self) -> Result<Self, git2::Error> {
-        if self.next_branch_name().is_none() {
-            Msg::new(msg::RELEASE_VERSION_NOT_SET).error().exit()
-        }
-
-        if self.prev_branch_name().is_some() {
-            return self.rename_branch();
-        }
-
-        self.new_branch()
-    }
-
-    fn new_branch(&mut self) -> Result<Self, git2::Error> {
-        let next_branch_name = self.next_branch_name().unwrap();
-        let next_branch = self.repo.find_branch(&next_branch_name, git2::BranchType::Local);
-        if next_branch.is_err() {
+    pub fn add_branch(&mut self, name: &str) -> Result<Self, git2::Error> {
+        let branch_name = self.get_branch_name(&name);
+        let branch = self.repo.find_branch(&branch_name, git2::BranchType::Local);
+        if branch.is_err() {
             let main_branch = &self.repo.find_branch(&self.project_config.main_branch, git2::BranchType::Local)?;
-            self.repo.branch(&next_branch_name, &main_branch.get().peel_to_commit()?, false)?;
+            self.repo.branch(&branch_name, &main_branch.get().peel_to_commit()?, false)?;
         }
 
         Ok(Self::repo(&self.project_config))
     }
 
-    fn rename_branch(&mut self) -> Result<Self, git2::Error> {
+    pub fn add_or_rename_next_branch(&mut self) -> Result<Self, git2::Error> {
+        if self.next_branch_name().is_none() {
+            Msg::new(msg::RELEASE_VERSION_NOT_SET).error().exit()
+        }
+
+        if self.prev_branch_name().is_some() {
+            return self.rename_next_branch();
+        }
+
+        self.add_next_branch()
+    }
+
+    fn add_next_branch(&mut self) -> Result<Self, git2::Error> {
+        self.add_branch(&self.project_config.next.clone().unwrap())
+    }
+
+    fn rename_next_branch(&mut self) -> Result<Self, git2::Error> {
         let prev_branch_name = self.prev_branch_name().unwrap();
         let next_branch_name = self.next_branch_name().unwrap();
         let prev_branch = self.repo.find_branch(&prev_branch_name, git2::BranchType::Local);
         if prev_branch.is_err() {
-            return Self::repo(&self.project_config).new_branch();
+            return Self::repo(&self.project_config).add_next_branch();
         }
 
         let _ = prev_branch?.rename(&next_branch_name, false);
         Ok(Self::repo(&self.project_config))
     }
 
-    pub fn checkout(&mut self) -> Result<(), git2::Error> {
-        if self.next_branch_name().is_none() {
-            Msg::new(msg::RELEASE_VERSION_NOT_SET).error().exit()
-        }
-        let next_branch_name = self.next_branch_name().unwrap();
-        let branch_ref = self.repo.find_branch(&next_branch_name, git2::BranchType::Local)?;
+    pub fn checkout(&mut self, name: &str) -> Result<(), git2::Error> {
+        let branch_name = self.get_branch_name(&name);
+        let branch_ref = self.repo.find_branch(&branch_name, git2::BranchType::Local)?;
         self.repo
             .set_head(&branch_ref.get().name().unwrap_or(&format!("refs/heads/{}", &self.project_config.main_branch)))?;
 
         Ok(())
+    }
+
+    pub fn checkout_next(&mut self) -> Result<(), git2::Error> {
+        self.checkout(&self.project_config.next.clone().unwrap())
     }
 
     fn next_branch_name(&mut self) -> Option<String> {
@@ -108,7 +113,7 @@ impl Git {
         }
     }
 
-    fn get_branch_name(&mut self, version: &str) -> String {
-        format!("{}/{}", self.project_config.branch_type.to_string().to_lowercase(), &version)
+    fn get_branch_name(&mut self, name: &str) -> String {
+        format!("{}/{}", self.project_config.branch_type.to_string().to_lowercase(), &name)
     }
 }
