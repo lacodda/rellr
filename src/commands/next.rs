@@ -24,11 +24,19 @@ pub enum UpdateType {
 
 pub fn cmd(next_args: NextArgs) -> Result<(), Box<dyn Error>> {
     let mut project_config = ProjectConfig::get()?;
-    project_config = project_config.up_version(&next_args.update_type)?;
-    project_config.save()?;
+    let project_config_res = project_config.up_version(&next_args.update_type);
 
-    Git::repo(&project_config).branch()?.checkout()?;
+    match project_config_res {
+        Ok(_) => {
+            project_config = project_config_res.unwrap();
+            project_config.save()?;
+        }
+        Err(err) => {
+            Msg::new(&err.to_string()).warn();
+        }
+    }
 
+    Git::repo(&project_config).rename_or_new_branch()?.checkout()?;
     Msg::new(&format!("{} {}", &msg::NEXT, &project_config.next.unwrap())).info();
 
     Ok(())

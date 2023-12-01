@@ -47,31 +47,38 @@ impl Git {
         Ok(repo)
     }
 
-    pub fn branch(&mut self) -> Result<Self, git2::Error> {
+    pub fn rename_or_new_branch(&mut self) -> Result<Self, git2::Error> {
         if self.next_branch_name().is_none() {
             Msg::new(msg::RELEASE_VERSION_NOT_SET).error().exit()
         }
+
         if self.prev_branch_name().is_some() {
-            return self.rename();
+            return self.rename_branch();
         }
 
+        self.new_branch()
+    }
+
+    fn new_branch(&mut self) -> Result<Self, git2::Error> {
         let next_branch_name = self.next_branch_name().unwrap();
-        let main_branch = &self.repo.find_branch(&self.project_config.main_branch, git2::BranchType::Local)?;
-        self.repo.branch(&next_branch_name, &main_branch.get().peel_to_commit()?, false)?;
+        let next_branch = self.repo.find_branch(&next_branch_name, git2::BranchType::Local);
+        if next_branch.is_err() {
+            let main_branch = &self.repo.find_branch(&self.project_config.main_branch, git2::BranchType::Local)?;
+            self.repo.branch(&next_branch_name, &main_branch.get().peel_to_commit()?, false)?;
+        }
 
         Ok(Self::repo(&self.project_config))
     }
 
-    pub fn rename(&mut self) -> Result<Self, git2::Error> {
-        if self.next_branch_name().is_none() {
-            Msg::new(msg::RELEASE_VERSION_NOT_SET).error().exit()
-        }
-        let prev = &self.prev_branch_name();
-        if prev.is_some() {
-            let next = self.next_branch_name().clone().unwrap();
-            let _ = self.repo.find_branch(&prev.clone().unwrap(), git2::BranchType::Local)?.rename(&next, false);
+    fn rename_branch(&mut self) -> Result<Self, git2::Error> {
+        let prev_branch_name = self.prev_branch_name().unwrap();
+        let next_branch_name = self.next_branch_name().unwrap();
+        let prev_branch = self.repo.find_branch(&prev_branch_name, git2::BranchType::Local);
+        if prev_branch.is_err() {
+            return Self::repo(&self.project_config).new_branch();
         }
 
+        let _ = prev_branch?.rename(&next_branch_name, false);
         Ok(Self::repo(&self.project_config))
     }
 

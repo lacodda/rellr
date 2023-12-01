@@ -70,7 +70,7 @@ impl ProjectConfig {
         let next = version_vec.iter().map(|&n| n.to_string()).collect::<Vec<String>>().join(".");
 
         if self.next.clone().is_some_and(|n: String| n == next) {
-            Msg::new(msg::RELEASE_ALREADY_EXISTS).warn().exit()
+            return Err(msg::RELEASE_ALREADY_EXISTS.to_string().into());
         }
 
         self.prev = self.next.clone();
