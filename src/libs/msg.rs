@@ -37,3 +37,6 @@ pub const RELLR_INIT_HELP: &str = "To create a configuration file, run the comma
 pub const NEXT: &str = "Next version:";
 pub const RELEASE_ALREADY_EXISTS: &str = "The release already exists";
 pub const RELEASE_VERSION_NOT_SET: &str = "The release version has not yet been set";
+pub const FEAT_WAS_CREATED: &str = "New feature was created successfully";
+pub const FIX_WAS_CREATED: &str = "New hotfix was created successfully";
+
