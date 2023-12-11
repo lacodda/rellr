@@ -16,13 +16,13 @@ struct Cli {
 enum Commands {
     #[command(about = "Configuration initialization", arg_required_else_help = true)]
     Init(init::InitArgs),
-    #[command(about = "Create a new release", arg_required_else_help = true)]
+    #[command(about = "Create a new release")]
     Next(next::NextArgs),
     #[command(about = "Feature", arg_required_else_help = true)]
     Feat(feat::FeatArgs),
     #[command(about = "Hotfix", arg_required_else_help = true)]
     Fix(fix::FixArgs),
-    #[command(about = "Release", arg_required_else_help = true)]
+    #[command(about = "Release")]
     Release(release::ReleaseArgs),
     #[command(about = "Remove last commit", arg_required_else_help = true)]
     Reset(reset::ResetArgs),
