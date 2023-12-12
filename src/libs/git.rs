@@ -2,8 +2,8 @@ use super::{
     msg::{self, Msg},
     project_config::ProjectConfig,
 };
-use git2::{Repository, RepositoryInitOptions};
-use std::fmt;
+use git2::{ObjectType, Repository, RepositoryInitOptions, Signature};
+use std::{fmt, path::Path};
 
 #[derive(Debug, Default, Clone)]
 pub enum BranchType {
@@ -95,6 +95,36 @@ impl Git {
         Ok(())
     }
 
+    pub fn commit(&mut self, paths: Vec<&str>) -> Result<(), git2::Error> {
+        if self.next_branch_name().is_none() {
+            Msg::new(msg::RELEASE_VERSION_NOT_SET).error().exit()
+        }
+        let next_version = self.project_config.next.clone().unwrap();
+
+        let mut index = self.repo.index()?;
+
+        for path in paths {
+            index.add_path(Path::new(path))?;
+        }
+
+        index.write()?;
+        let tree_id = index.write_tree()?;
+        let tree = self.repo.find_tree(tree_id)?;
+
+        let mut git = Self::repo(&self.project_config);
+        let signature = git.get_signature()?;
+        let head = self.repo.head()?;
+        let parent_commit = self.repo.find_commit(head.target().unwrap())?;
+
+        let commit_id = self.repo.commit(Some("HEAD"), &signature, &signature, &next_version, &tree, &[&parent_commit])?;
+        let commit = self.repo.find_object(commit_id, Some(ObjectType::Commit))?;
+
+        let tag = format!("v{}", &next_version);
+        self.repo.tag(&tag, &commit, &signature, &next_version, false)?;
+
+        Ok(())
+    }
+
     pub fn checkout_next(&mut self) -> Result<(), git2::Error> {
         self.checkout(&self.project_config.next.clone().unwrap())
     }
@@ -115,5 +145,14 @@ impl Git {
 
     fn get_branch_name(&mut self, name: &str) -> String {
         format!("{}/{}", self.project_config.branch_type.to_string().to_lowercase(), &name)
+    }
+
+    fn get_signature(&mut self) -> Result<Signature<'_>, git2::Error> {
+        let config = self.repo.config()?;
+        let author_name = config.get_string("user.name").unwrap_or_default();
+        let author_email = config.get_string("user.email").unwrap_or_default();
+        let signature = Signature::now(&author_name, &author_email)?;
+
+        Ok(signature)
     }
 }
