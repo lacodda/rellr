@@ -36,7 +36,7 @@ pub fn cmd(next_args: NextArgs) -> Result<(), Box<dyn Error>> {
         }
     }
 
-    Git::repo(&project_config).add_or_rename_next_branch()?.checkout_next()?;
+    Git::new(&project_config).add_or_rename_next_branch()?.checkout_next()?;
     Msg::new(&format!("{} {}", &msg::NEXT, &project_config.next.unwrap())).info();
 
     Ok(())

@@ -25,7 +25,7 @@ pub struct Git {
 }
 
 impl Git {
-    pub fn repo(project_config: &ProjectConfig) -> Self {
+    pub fn new(project_config: &ProjectConfig) -> Self {
         let repo_path = ".";
         let open_repo = Repository::open(&repo_path);
         let repo: Repository = match open_repo {
@@ -55,7 +55,7 @@ impl Git {
             self.repo.branch(&branch_name, &main_branch.get().peel_to_commit()?, false)?;
         }
 
-        Ok(Self::repo(&self.project_config))
+        Ok(Self::new(&self.project_config))
     }
 
     pub fn add_or_rename_next_branch(&mut self) -> Result<Self, git2::Error> {
@@ -79,11 +79,11 @@ impl Git {
         let next_branch_name = self.next_branch_name().unwrap();
         let prev_branch = self.repo.find_branch(&prev_branch_name, git2::BranchType::Local);
         if prev_branch.is_err() {
-            return Self::repo(&self.project_config).add_next_branch();
+            return Self::new(&self.project_config).add_next_branch();
         }
 
         let _ = prev_branch?.rename(&next_branch_name, false);
-        Ok(Self::repo(&self.project_config))
+        Ok(Self::new(&self.project_config))
     }
 
     pub fn checkout(&mut self, name: &str) -> Result<(), git2::Error> {
@@ -111,7 +111,7 @@ impl Git {
         let tree_id = index.write_tree()?;
         let tree = self.repo.find_tree(tree_id)?;
 
-        let mut git = Self::repo(&self.project_config);
+        let mut git = Self::new(&self.project_config);
         let signature = git.get_signature()?;
         let head = self.repo.head()?;
         let parent_commit = self.repo.find_commit(head.target().unwrap())?;

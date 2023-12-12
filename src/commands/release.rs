@@ -38,7 +38,7 @@ pub fn cmd(release_args: ReleaseArgs) -> Result<(), Box<dyn Error>> {
         update_version_in_file(&path, &project_name, &next_version)?;
     }
     
-    let _ = Git::repo(&project_config).commit(paths);
+    let _ = Git::new(&project_config).commit(paths);
 
     let npm_folder = to_abs_path("npm");
     publish_npm(&npm_folder)?;
