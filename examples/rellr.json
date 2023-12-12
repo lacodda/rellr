@@ -1,0 +1,11 @@
+{
+  "name": "rellr_demo",
+  "current": "0.0.0",
+  "next": "0.0.1",
+  "main_branch": "main",
+  "package_managers": [
+    "cargo",
+    { "type": "npm", "path": "npm", "publish": true }
+  ],
+  "changelog": "CHANGELOG.md"
+}
