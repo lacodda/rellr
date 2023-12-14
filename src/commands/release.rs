@@ -1,3 +1,4 @@
+use crate::libs::changelog::Changelog;
 use crate::libs::git::Git;
 use crate::libs::helpers::to_abs_path;
 use crate::libs::msg::{self, Msg};
@@ -30,14 +31,14 @@ pub fn cmd(release_args: ReleaseArgs) -> Result<(), Box<dyn Error>> {
     let project_folder = to_abs_path(&release_args.project_folder.or(Some(".".into())).unwrap());
     env::set_current_dir(&project_folder)?;
 
-    update_changelog(&next_version)?;
-   
+    let _ = Changelog::new(&project_config).build();
+
     let paths = vec!["Cargo.toml", "Cargo.lock", "npm/package.json", "CHANGELOG.md"];
-    
+
     for path in paths.clone() {
         update_version_in_file(&path, &project_name, &next_version)?;
     }
-    
+
     let _ = Git::new(&project_config).commit(paths);
 
     let npm_folder = to_abs_path("npm");
@@ -63,24 +64,6 @@ fn update_version_in_file(path: &str, project_name: &str, next_version: &str) ->
     let mut file = OpenOptions::new().write(true).truncate(true).open(file_path)?;
 
     file.write_all(new_contents.as_bytes())?;
-
-    Ok(())
-}
-
-fn update_changelog(next_version: &str) -> Result<(), Box<dyn Error>> {
-    let git_cliff_command = Command::new("git-cliff")
-        .arg("--sort")
-        .arg("newest")
-        .arg("--output")
-        .arg("CHANGELOG.md")
-        .arg("--tag")
-        .arg(next_version)
-        .status()?;
-
-    if !git_cliff_command.success() {
-        eprintln!("Error running 'git cliff'");
-        return Ok(());
-    }
 
     Ok(())
 }
