@@ -2,7 +2,7 @@ use super::{
     msg::{self, Msg},
     project_config::ProjectConfig,
 };
-use git2::{ObjectType, Repository, RepositoryInitOptions, Signature};
+use git2::{build::CheckoutBuilder, Error, MergeOptions, ObjectType, Repository, RepositoryInitOptions, ResetType, Signature};
 use std::{fmt, path::Path};
 
 #[derive(Debug, Default, Clone)]
@@ -17,6 +17,12 @@ impl fmt::Display for BranchType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:?}", self)
     }
+}
+
+#[allow(dead_code)]
+enum VersionType {
+    Main,
+    Next,
 }
 
 pub struct Git {
@@ -86,12 +92,19 @@ impl Git {
         Ok(Self::new(&self.project_config))
     }
 
-    pub fn checkout(&mut self, name: &str) -> Result<(), git2::Error> {
+    pub fn checkout(&mut self, name: Option<&str>) -> Result<(), git2::Error> {
+        let main_branch_ref = self.get_branch_ref_name(VersionType::Main);
+        let ref_name: String = match name {
+            Some(name) => {
         let branch_name = self.get_branch_name(&name);
         let branch_ref = self.repo.find_branch(&branch_name, git2::BranchType::Local)?;
-        self.repo
-            .set_head(&branch_ref.get().name().unwrap_or(&format!("refs/heads/{}", &self.project_config.main_branch)))?;
+                branch_ref.get().name().unwrap_or(&main_branch_ref).to_owned()
+            }
+            None => main_branch_ref,
+        };
 
+        self.repo.set_head(&ref_name)?;
+        self.repo.checkout_head(Some(CheckoutBuilder::default().force()))?;
         Ok(())
     }
 
@@ -126,7 +139,7 @@ impl Git {
     }
 
     pub fn checkout_next(&mut self) -> Result<(), git2::Error> {
-        self.checkout(&self.project_config.next.clone().unwrap())
+        self.checkout(Some(&self.project_config.next.clone().unwrap()))
     }
 
     fn next_branch_name(&mut self) -> Option<String> {
@@ -145,6 +158,16 @@ impl Git {
 
     fn get_branch_name(&mut self, name: &str) -> String {
         format!("{}/{}", self.project_config.branch_type.to_string().to_lowercase(), &name)
+    }
+
+    fn get_branch_ref_name(&mut self, version_type: VersionType) -> String {
+        let next_branch_name = self.next_branch_name().unwrap();
+        let name = match version_type {
+            VersionType::Main => &self.project_config.main_branch,
+            VersionType::Next => &next_branch_name,
+        };
+
+        format!("refs/heads/{}", name)
     }
 
     fn get_signature(&mut self) -> Result<Signature<'_>, git2::Error> {
