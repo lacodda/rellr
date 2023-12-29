@@ -78,6 +78,15 @@ impl ProjectConfig {
         Ok(self.to_owned())
     }
 
+    pub fn next_to_current(&mut self) -> Result<Self, Box<dyn Error>> {
+        if self.next.is_none() {
+            Msg::new(msg::RELEASE_VERSION_NOT_SET).error().exit()
+        }
+        self.current = self.next.clone().unwrap();
+        self.next = None;
+        Ok(self.to_owned())
+    }
+
     fn increment(mut version_vec: Vec<u32>, index: usize) -> Vec<u32> {
         if let Some(value) = version_vec.get_mut(index) {
             *value += 1;
