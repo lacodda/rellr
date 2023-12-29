@@ -2,7 +2,7 @@ use super::{
     msg::{self, Msg},
     project_config::ProjectConfig,
 };
-use git2::{build::CheckoutBuilder, Error, MergeOptions, ObjectType, Repository, RepositoryInitOptions, ResetType, Signature};
+use git2::{build::CheckoutBuilder, Error, ObjectType, Reference, Repository, RepositoryInitOptions, ResetType, Signature};
 use std::{fmt, path::Path};
 
 #[derive(Debug, Default, Clone)]
@@ -96,8 +96,8 @@ impl Git {
         let main_branch_ref = self.get_branch_ref_name(VersionType::Main);
         let ref_name: String = match name {
             Some(name) => {
-        let branch_name = self.get_branch_name(&name);
-        let branch_ref = self.repo.find_branch(&branch_name, git2::BranchType::Local)?;
+                let branch_name = self.get_branch_name(&name);
+                let branch_ref = self.repo.find_branch(&branch_name, git2::BranchType::Local)?;
                 branch_ref.get().name().unwrap_or(&main_branch_ref).to_owned()
             }
             None => main_branch_ref,
@@ -109,10 +109,7 @@ impl Git {
     }
 
     pub fn commit(&mut self, paths: Vec<&str>) -> Result<(), git2::Error> {
-        if self.next_branch_name().is_none() {
-            Msg::new(msg::RELEASE_VERSION_NOT_SET).error().exit()
-        }
-        let next_version = self.project_config.next.clone().unwrap();
+        let version = &self.project_config.current;
 
         let mut index = self.repo.index()?;
 
@@ -129,17 +126,72 @@ impl Git {
         let head = self.repo.head()?;
         let parent_commit = self.repo.find_commit(head.target().unwrap())?;
 
-        let commit_id = self.repo.commit(Some("HEAD"), &signature, &signature, &next_version, &tree, &[&parent_commit])?;
+        let commit_id = self.repo.commit(Some("HEAD"), &signature, &signature, &version, &tree, &[&parent_commit])?;
         let commit = self.repo.find_object(commit_id, Some(ObjectType::Commit))?;
 
-        let tag = format!("v{}", &next_version);
-        self.repo.tag(&tag, &commit, &signature, &next_version, false)?;
+        let tag = format!("v{}", &version);
+        self.repo.tag(&tag, &commit, &signature, &version, false)?;
 
         Ok(())
     }
 
     pub fn checkout_next(&mut self) -> Result<(), git2::Error> {
         self.checkout(Some(&self.project_config.next.clone().unwrap()))
+    }
+
+    pub fn merge(&mut self) -> Result<Self, git2::Error> {
+        self.checkout(None)?;
+
+        if self.next_branch_name().is_none() {
+            Msg::new(msg::RELEASE_VERSION_NOT_SET).error().exit()
+        }
+
+        let repo = Self::new(&self.project_config).repo;
+
+        let next_branch_ref_name = self.get_branch_ref_name(VersionType::Next);
+        let next_branch_name = self.next_branch_name().unwrap();
+
+        let mut branch_ref = repo.find_reference(&next_branch_ref_name)?;
+        let selected_commit = repo.reference_to_annotated_commit(&branch_ref)?;
+        let analysis = repo.merge_analysis(&[&selected_commit])?;
+
+        if analysis.0.is_fast_forward() {
+            self.fast_forward(&mut branch_ref)?;
+            Msg::new("Fast-Forward").info();
+        } else if analysis.0.is_normal() {
+            Msg::new("Normal merge").info();
+        } else if analysis.0.is_up_to_date() {
+            Msg::new("The repository is up to date and no merge is required").info();
+        } else {
+            Msg::new("Merge conflicts were detected! Resolve conflicts and commit manually").error().exit()
+        }
+
+        self.repo.find_branch(&next_branch_name, git2::BranchType::Local)?.delete()?;
+
+        Ok(Self::new(&self.project_config))
+    }
+
+    fn fast_forward(&mut self, branch_ref: &mut Reference) -> Result<(), git2::Error> {
+        let name = match branch_ref.name() {
+            Some(s) => s.to_string(),
+            None => String::from_utf8_lossy(branch_ref.name_bytes()).to_string(),
+        };
+
+        let main_branch = self.repo.find_branch(&self.project_config.main_branch, git2::BranchType::Local)?;
+        let target_ref = main_branch.into_reference();
+        let target_oid = target_ref.target().unwrap();
+
+        let source_oid = branch_ref.target().unwrap();
+        let source_commit = self.repo.find_object(source_oid, Some(ObjectType::Commit))?;
+
+        let log_msg = format!("Fast-Forward: Setting {} to id: {}", &name, &source_oid);
+
+        if self.repo.graph_ahead_behind(source_oid, target_oid)?.0 > 0 {
+            self.repo.checkout_tree(&source_commit, None)?;
+            self.repo.reference(&target_ref.name().unwrap(), source_commit.id(), true, &log_msg)?;
+        }
+
+        Ok(())
     }
 
     fn next_branch_name(&mut self) -> Option<String> {

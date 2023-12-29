@@ -19,13 +19,16 @@ pub struct ReleaseArgs {
 }
 
 pub fn cmd(release_args: ReleaseArgs) -> Result<(), Box<dyn Error>> {
-    let project_config = ProjectConfig::get()?;
+    let mut project_config = ProjectConfig::get()?;
 
     if project_config.next.is_none() {
         Msg::new(msg::RELEASE_VERSION_NOT_SET).error().exit()
     }
 
-    let next_version = &project_config.clone().next.unwrap();
+    let mut git = Git::new(&project_config).merge()?;
+    let _ = project_config.next_to_current()?.save();
+
+    let version = &project_config.current;
     let project_name = &project_config.name;
 
     let project_folder = to_abs_path(&release_args.project_folder.or(Some(".".into())).unwrap());
@@ -33,18 +36,18 @@ pub fn cmd(release_args: ReleaseArgs) -> Result<(), Box<dyn Error>> {
 
     let _ = Changelog::new(&project_config).build();
 
-    let paths = vec!["Cargo.toml", "Cargo.lock", "npm/package.json", "CHANGELOG.md"];
+    let paths = vec!["Cargo.toml", "Cargo.lock", "npm/package.json", "CHANGELOG.md", "rellr.json"];
 
     for path in paths.clone() {
-        update_version_in_file(&path, &project_name, &next_version)?;
+        update_version_in_file(&path, &project_name, &version)?;
     }
+    
+    git.commit(paths)?;
 
-    let _ = Git::new(&project_config).commit(paths);
+    // let npm_folder = to_abs_path("npm");
+    // publish_npm(&npm_folder)?;
 
-    let npm_folder = to_abs_path("npm");
-    publish_npm(&npm_folder)?;
-
-    println!("Version {} updated successfully in project folder: {}", next_version, &project_folder);
+    println!("Version {} updated successfully in project folder: {}", &version, &project_folder);
 
     Ok(())
 }
