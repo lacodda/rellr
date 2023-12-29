@@ -24,7 +24,7 @@ enum Commands {
     Fix(fix::FixArgs),
     #[command(about = "Release")]
     Release(release::ReleaseArgs),
-    #[command(about = "Remove last commit", arg_required_else_help = true)]
+    #[command(about = "Remove last commit")]
     Reset(reset::ResetArgs),
 }
 
