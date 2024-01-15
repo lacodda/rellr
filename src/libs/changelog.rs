@@ -98,15 +98,14 @@ impl Changelog {
         }
 
         // Update tags.
-        if let Some(ref tag) = &self.project_config.next {
-            if let Some(commit_id) = commits.first().map(|c| c.id().to_string()) {
-                match tags.get(&commit_id) {
-                    Some(tag) => {
-                        println!("There is already a tag ({}) for {}", tag, commit_id)
-                    }
-                    None => {
-                        tags.insert(commit_id, tag.to_string());
-                    }
+        let tag = &self.project_config.current;
+        if let Some(commit_id) = commits.first().map(|c| c.id().to_string()) {
+            match tags.get(&commit_id) {
+                Some(tag) => {
+                    println!("There is already a tag ({}) for {}", tag, commit_id)
+                }
+                None => {
+                    tags.insert(commit_id, tag.to_string());
                 }
             }
         }

@@ -2,7 +2,7 @@ use super::{
     msg::{self, Msg},
     project_config::ProjectConfig,
 };
-use git2::{build::CheckoutBuilder, Error, ObjectType, Reference, Repository, RepositoryInitOptions, ResetType, Signature};
+use git2::{Error, ObjectType, Reference, Repository, RepositoryInitOptions, ResetType, Signature};
 use std::{fmt, path::Path};
 
 #[derive(Debug, Default, Clone)]
@@ -104,13 +104,12 @@ impl Git {
         };
 
         self.repo.set_head(&ref_name)?;
-        self.repo.checkout_head(Some(CheckoutBuilder::default().force()))?;
+
         Ok(())
     }
 
     pub fn commit(&mut self, paths: Vec<&str>) -> Result<(), git2::Error> {
-        let version = &self.project_config.current;
-
+        let version = self.project_config.next.clone().unwrap();
         let mut index = self.repo.index()?;
 
         for path in paths {
@@ -136,7 +135,7 @@ impl Git {
     }
 
     pub fn checkout_next(&mut self) -> Result<(), git2::Error> {
-        self.checkout(Some(&self.project_config.next.clone().unwrap()))
+        self.checkout(self.project_config.next.clone().as_deref())
     }
 
     pub fn merge(&mut self) -> Result<Self, git2::Error> {
