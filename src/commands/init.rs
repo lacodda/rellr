@@ -4,15 +4,14 @@ use std::error::Error;
 
 #[derive(Debug, Args)]
 pub struct InitArgs {
-    #[arg(required = true, short, long)]
+    #[arg(required = true)]
     pub name: String,
-    #[arg(required = true, short, long)]
-    pub version: String,
+    #[arg(short, long)]
+    pub version: Option<String>,
 }
 
 pub fn cmd(init_args: InitArgs) -> Result<(), Box<dyn Error>> {
-    let mut project_config = ProjectConfig::new_if_not_exist(init_args)?;
-    let _ = project_config.save();
+    let _ = ProjectConfig::new_if_not_exist(init_args)?.save()?;
     Msg::new(msg::RELLR_FILE_WAS_CREATED).info();
     Ok(())
 }

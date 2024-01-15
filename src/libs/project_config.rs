@@ -27,7 +27,7 @@ impl ProjectConfig {
     pub fn new(init_args: InitArgs) -> Self {
         Self {
             name: init_args.name,
-            current: init_args.version,
+            current: init_args.version.unwrap_or("0.0.0".to_string()),
             next: None,
             prev: None,
             branch_type: BranchType::Release,
