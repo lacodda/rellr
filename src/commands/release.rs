@@ -34,9 +34,13 @@ pub fn cmd(release_args: ReleaseArgs) -> Result<(), Box<dyn Error>> {
     let project_folder = to_abs_path(&release_args.project_folder.or(Some(".".into())).unwrap());
     env::set_current_dir(&project_folder)?;
 
-    let _ = Changelog::new(&project_config).build();
+    let mut paths = vec!["Cargo.toml", "Cargo.lock", "npm/package.json", "rellr.json"];
 
-    let paths = vec!["Cargo.toml", "Cargo.lock", "npm/package.json", "CHANGELOG.md", "rellr.json"];
+    let mut changelog = Changelog::new(&project_config);
+    let changelog_file_name = changelog.output_file_name();
+    paths.push(&changelog_file_name);
+    let _ = changelog.build();
+
 
     for path in paths.clone() {
         update_version_in_file(&path, &project_name, &version)?;

@@ -11,7 +11,6 @@ use std::io::Write;
 
 pub const BUILTIN_CONFIG: &str = include_str!("../../examples/cliff.toml");
 pub const DEFAULT_OUTPUT: &str = "CHANGELOG.md";
-// pub const DEFAULT_CONFIG: &str = "cliff.toml";
 
 #[allow(dead_code)]
 enum ProcessOutput<'a> {
@@ -35,6 +34,7 @@ impl Changelog {
     }
 
     pub fn build(&mut self) -> Result<()> {
+        let output_file_name = self.output_file_name();
         let config = Self::get_builtin_config().unwrap();
         let repositories = vec![env::current_dir()?];
         let mut releases = Vec::<Release>::new();
@@ -51,16 +51,20 @@ impl Changelog {
 
         if !versions.is_empty() {
             let buf = versions.join("\n");
-            let mut output = File::create(DEFAULT_OUTPUT)?;
+            let mut output = File::create(&output_file_name)?;
             output.write_all(buf.as_bytes())?;
             return Ok(());
         }
 
         let changelog = GitCliffChangelog::new(releases, &config)?;
-        let mut output = File::create(DEFAULT_OUTPUT)?;
+        let mut output = File::create(&output_file_name)?;
         let _ = changelog.generate(&mut output);
 
         Ok(())
+    }
+
+    pub fn output_file_name(&mut self) -> String {
+        self.project_config.changelog.clone().unwrap_or(DEFAULT_OUTPUT.into())
     }
 
     fn get_builtin_config() -> Result<Config> {
