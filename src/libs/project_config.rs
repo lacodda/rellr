@@ -10,7 +10,23 @@ use std::fs::{metadata, read_to_string, File};
 
 pub const PROJECT_CONFIG: &str = "rellr.json";
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PackageManagerType {
+    Cargo,
+    Npm,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackageManager {
+    pub r#type: PackageManagerType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub publish: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectConfig {
     pub name: String,
     pub current: String,
@@ -21,6 +37,10 @@ pub struct ProjectConfig {
     #[serde(skip)]
     pub branch_type: BranchType,
     pub main_branch: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub changelog: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub package_managers: Option<Vec<PackageManager>>,
 }
 
 impl ProjectConfig {
@@ -32,6 +52,8 @@ impl ProjectConfig {
             prev: None,
             branch_type: BranchType::Release,
             main_branch: "main".into(),
+            changelog: None,
+            package_managers: None,
         }
     }
 
