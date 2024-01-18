@@ -2,28 +2,32 @@ use super::git::BranchType;
 use super::msg;
 use crate::commands::init::InitArgs;
 use crate::commands::next::UpdateType;
+use crate::libs::helpers::to_abs_path;
 use crate::libs::msg::Msg;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
+use std::env;
 use std::error::Error;
 use std::fs::{metadata, read_to_string, File};
+use std::path::Path;
+use std::process::Command;
 
 pub const PROJECT_CONFIG: &str = "rellr.json";
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum PackageManagerType {
-    Cargo,
-    Npm,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackageManager {
-    pub r#type: PackageManagerType,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub publish: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackageManagers {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cargo: Option<PackageManager>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    npm: Option<PackageManager>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,7 +44,7 @@ pub struct ProjectConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub changelog: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub package_managers: Option<Vec<PackageManager>>,
+    pub package_managers: Option<PackageManagers>,
 }
 
 impl ProjectConfig {
@@ -109,6 +113,18 @@ impl ProjectConfig {
         Ok(self.to_owned())
     }
 
+    pub fn paths(&mut self) -> Vec<String> {
+        let mut paths: Vec<String> = vec![];
+        if self.package_managers.is_none() {
+            return paths;
+        }
+
+        paths.append(&mut Cargo::new(&self).paths());
+        paths.append(&mut Npm::new(&self).paths());
+
+        paths
+    }
+
     fn increment(mut version_vec: Vec<u32>, index: usize) -> Vec<u32> {
         if let Some(value) = version_vec.get_mut(index) {
             *value += 1;
@@ -118,5 +134,104 @@ impl ProjectConfig {
             }
         }
         version_vec
+    }
+}
+
+trait PackageManagerTrait {
+    fn new(project_config: &ProjectConfig) -> Self;
+    fn files(&self) -> Vec<String>;
+    fn paths(&self) -> Vec<String>;
+    fn publish(&self) -> Result<(), Box<dyn Error>>;
+    fn pm_config(package_manager: &Option<PackageManager>) -> PackageManagerConfig {
+        match package_manager {
+            Some(_) => PackageManagerConfig {
+                path: package_manager.clone().unwrap().path.unwrap_or("".into()),
+                publish: package_manager.clone().unwrap().publish.unwrap_or(false),
+                active: true,
+            },
+            None => PackageManagerConfig {
+                path: "".into(),
+                publish: false,
+                active: false,
+            },
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+struct PackageManagerConfig {
+    pub path: String,
+    pub publish: bool,
+    pub active: bool,
+}
+
+struct Cargo {
+    pub config: PackageManagerConfig,
+}
+
+impl PackageManagerTrait for Cargo {
+    fn new(project_config: &ProjectConfig) -> Self {
+        let package_manager = project_config.package_managers.clone().unwrap().cargo;
+        Self {
+            config: Self::pm_config(&package_manager),
+        }
+    }
+
+    fn files(&self) -> Vec<String> {
+        vec!["Cargo.toml".into(), "Cargo.lock".into()]
+    }
+
+    fn paths(&self) -> Vec<String> {
+        match &self.config.active {
+            true => vec![self.config.clone().path],
+            false => vec![],
+        }
+    }
+
+    fn publish(&self) -> Result<(), Box<dyn Error>> {
+        todo!()
+    }
+}
+
+struct Npm {
+    pub config: PackageManagerConfig,
+}
+
+impl PackageManagerTrait for Npm {
+    fn new(project_config: &ProjectConfig) -> Self {
+        let package_manager = project_config.package_managers.clone().unwrap().npm;
+        Self {
+            config: Self::pm_config(&package_manager),
+        }
+    }
+
+    fn files(&self) -> Vec<String> {
+        vec!["package.json".into()]
+    }
+
+    fn paths(&self) -> Vec<String> {
+        match &self.config.active {
+            true => vec![self.config.clone().path],
+            false => vec![],
+        }
+    }
+
+    fn publish(&self) -> Result<(), Box<dyn Error>> {
+        if !&self.config.publish {
+            return Ok(());
+        }
+
+        let npm = Path::new(r"C:\Program Files\nodejs");
+        assert!(env::set_current_dir(&npm).is_ok());
+
+        #[cfg(windows)]
+        pub const NPM: &'static str = "npm.cmd";
+        #[cfg(not(windows))]
+        pub const NPM: &'static str = "npm";
+
+        env::set_current_dir(to_abs_path(&self.config.path))?;
+        let _ = Command::new(NPM).arg("publish").spawn()?.wait();
+
+        Ok(())
     }
 }
