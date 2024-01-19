@@ -108,12 +108,12 @@ impl Git {
         Ok(())
     }
 
-    pub fn commit(&mut self, paths: Vec<String>) -> Result<(), git2::Error> {
+    pub fn commit(&mut self, paths: Vec<&str>) -> Result<(), git2::Error> {
         let version = self.project_config.next.clone().unwrap();
         let mut index = self.repo.index()?;
 
         for path in paths {
-            index.add_path(Path::new(&path))?;
+            index.add_path(Path::new(path))?;
         }
 
         index.write()?;

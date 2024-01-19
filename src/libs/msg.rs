@@ -41,4 +41,6 @@ pub const FEAT_WAS_CREATED: &str = "New feature was created successfully";
 pub const FIX_WAS_CREATED: &str = "New hotfix was created successfully";
 pub const LAST_COMMIT_WAS_REMOVED: &str = "The last commit was removed";
 pub const RELEASE_COMPLETED_SUCCESSFULLY: &str = "Release completed successfully with version:";
+pub const RELEASE_FAILED: &str = "Release failed";
+pub const FILES_ARE_MISSING: &str = "The following files are missing:";
 

@@ -1,6 +1,6 @@
 use crate::libs::changelog::Changelog;
 use crate::libs::git::Git;
-use crate::libs::helpers::to_abs_path;
+use crate::libs::helpers::{check_files_existence, to_abs_path};
 use crate::libs::msg::{self, Msg};
 use crate::libs::project_config::{ProjectConfig, PROJECT_CONFIG};
 use clap::Args;
@@ -24,6 +24,14 @@ pub fn cmd(release_args: ReleaseArgs) -> Result<(), Box<dyn Error>> {
         Msg::new(msg::RELEASE_VERSION_NOT_SET).error().exit()
     }
 
+    let paths = project_config.clone().paths();
+    let mut paths: Vec<&str> = paths.iter().map(|s| s.as_str()).collect();
+    let non_existent_files = check_files_existence(paths.clone());
+    if !non_existent_files.is_empty() {
+        Msg::new(msg::RELEASE_FAILED).error();
+        Msg::new(&format!("{}\n{}", msg::FILES_ARE_MISSING, &non_existent_files.join("\n"))).warn().exit()
+    }
+
     let mut git = Git::new(&project_config).merge()?;
     let _ = project_config.next_to_current()?.save();
 
@@ -34,18 +42,18 @@ pub fn cmd(release_args: ReleaseArgs) -> Result<(), Box<dyn Error>> {
     env::set_current_dir(&project_folder)?;
 
     // UPDATE VERSION
-    let mut paths = project_config.clone().paths();
-    for path in paths.clone() {
-        update_version_in_file(&path, &project_name, &version)?;
+    for path in &paths {
+        update_version_in_file(path, &project_name, &version)?;
     }
 
     // CHANGELOG.md
     let mut changelog = Changelog::new(&project_config);
     let _ = changelog.build();
-    paths.push(changelog.output_file_name());
+    let output_file_name = changelog.output_file_name();
+    paths.push(&output_file_name);
 
     // GIT ADD and COMMIT
-    paths.push(PROJECT_CONFIG.into());
+    paths.push(PROJECT_CONFIG);
     git.commit(paths)?;
 
     Msg::new(&format!("{} {}", &msg::RELEASE_COMPLETED_SUCCESSFULLY, &version)).info();
