@@ -1,4 +1,5 @@
 use super::git::BranchType;
+use super::helpers::to_path_str;
 use super::msg;
 use crate::commands::init::InitArgs;
 use crate::commands::next::UpdateType;
@@ -121,7 +122,6 @@ impl ProjectConfig {
 
         paths.append(&mut Cargo::new(&self).paths());
         paths.append(&mut Npm::new(&self).paths());
-
         paths
     }
 
@@ -156,6 +156,19 @@ trait PackageManagerTrait {
             },
         }
     }
+    fn pm_paths(&self, package_manager_config: &PackageManagerConfig) -> Vec<String> {
+        match &package_manager_config.active {
+            true => {
+                let mut paths: Vec<String> = vec![];
+                for file in self.files() {
+                    let path: Vec<&str> = vec![&package_manager_config.path, &file];
+                    paths.push(to_path_str(path));
+                }
+                paths
+            }
+            false => vec![],
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -182,10 +195,7 @@ impl PackageManagerTrait for Cargo {
     }
 
     fn paths(&self) -> Vec<String> {
-        match &self.config.active {
-            true => vec![self.config.clone().path],
-            false => vec![],
-        }
+        self.pm_paths(&self.config)
     }
 
     fn publish(&self) -> Result<(), Box<dyn Error>> {
@@ -210,10 +220,7 @@ impl PackageManagerTrait for Npm {
     }
 
     fn paths(&self) -> Vec<String> {
-        match &self.config.active {
-            true => vec![self.config.clone().path],
-            false => vec![],
-        }
+        self.pm_paths(&self.config)
     }
 
     fn publish(&self) -> Result<(), Box<dyn Error>> {
