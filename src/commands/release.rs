@@ -1,11 +1,10 @@
 use crate::libs::changelog::Changelog;
 use crate::libs::git::Git;
-use crate::libs::helpers::{check_files_existence, to_abs_path};
+use crate::libs::helpers::check_files_existence;
 use crate::libs::msg::{self, Msg};
 use crate::libs::project_config::{ProjectConfig, PROJECT_CONFIG};
 use clap::Args;
 use regex::Regex;
-use std::env;
 use std::error::Error;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write};
@@ -17,14 +16,14 @@ pub struct ReleaseArgs {
     project_folder: Option<String>,
 }
 
-pub fn cmd(release_args: ReleaseArgs) -> Result<(), Box<dyn Error>> {
+pub fn cmd(_release_args: ReleaseArgs) -> Result<(), Box<dyn Error>> {
     let mut project_config = ProjectConfig::get()?;
 
     if project_config.next.is_none() {
         Msg::new(msg::RELEASE_VERSION_NOT_SET).error().exit()
     }
 
-    let paths = project_config.clone().paths();
+    let paths = project_config.paths();
     let mut paths: Vec<&str> = paths.iter().map(|s| s.as_str()).collect();
     let non_existent_files = check_files_existence(paths.clone());
     if !non_existent_files.is_empty() {
@@ -37,9 +36,6 @@ pub fn cmd(release_args: ReleaseArgs) -> Result<(), Box<dyn Error>> {
 
     let version = &project_config.current;
     let project_name = &project_config.name;
-
-    let project_folder = to_abs_path(&release_args.project_folder.or(Some(".".into())).unwrap());
-    env::set_current_dir(&project_folder)?;
 
     // UPDATE VERSION
     for path in &paths {
@@ -57,6 +53,8 @@ pub fn cmd(release_args: ReleaseArgs) -> Result<(), Box<dyn Error>> {
     git.commit(paths)?;
 
     Msg::new(&format!("{} {}", &msg::RELEASE_COMPLETED_SUCCESSFULLY, &version)).info();
+
+    let _ = project_config.publish();
 
     Ok(())
 }

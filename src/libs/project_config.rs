@@ -125,6 +125,17 @@ impl ProjectConfig {
         paths
     }
 
+    pub fn publish(&mut self) -> Result<(), Box<dyn Error>> {
+        if self.package_managers.is_none() {
+            return Ok(());
+        }
+
+        Cargo::new(&self).publish()?;
+        Npm::new(&self).publish()?;
+
+        Ok(())
+    }
+
     fn increment(mut version_vec: Vec<u32>, index: usize) -> Vec<u32> {
         if let Some(value) = version_vec.get_mut(index) {
             *value += 1;
@@ -142,6 +153,7 @@ trait PackageManagerTrait {
     fn files(&self) -> Vec<String>;
     fn paths(&self) -> Vec<String>;
     fn publish(&self) -> Result<(), Box<dyn Error>>;
+
     fn pm_config(package_manager: &Option<PackageManager>) -> PackageManagerConfig {
         match package_manager {
             Some(_) => PackageManagerConfig {
@@ -156,6 +168,7 @@ trait PackageManagerTrait {
             },
         }
     }
+
     fn pm_paths(&self, package_manager_config: &PackageManagerConfig) -> Vec<String> {
         match &package_manager_config.active {
             true => {
@@ -199,7 +212,11 @@ impl PackageManagerTrait for Cargo {
     }
 
     fn publish(&self) -> Result<(), Box<dyn Error>> {
-        todo!()
+        if !&self.config.publish {
+            return Ok(());
+        }
+
+        Ok(())
     }
 }
 
@@ -228,6 +245,7 @@ impl PackageManagerTrait for Npm {
             return Ok(());
         }
 
+        let project_folder = to_abs_path(&self.config.path);
         let npm = Path::new(r"C:\Program Files\nodejs");
         assert!(env::set_current_dir(&npm).is_ok());
 
@@ -236,7 +254,8 @@ impl PackageManagerTrait for Npm {
         #[cfg(not(windows))]
         pub const NPM: &'static str = "npm";
 
-        env::set_current_dir(to_abs_path(&self.config.path))?;
+        env::set_current_dir(&project_folder)?;
+        Msg::new("").info();
         let _ = Command::new(NPM).arg("publish").spawn()?.wait();
 
         Ok(())
