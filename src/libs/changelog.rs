@@ -35,6 +35,7 @@ impl Changelog {
 
     pub fn build(&mut self) -> Result<()> {
         let output_file_name = self.output_file_name();
+        let mut output = File::create(&output_file_name)?;
         let config = Self::get_builtin_config().unwrap();
         let repositories = vec![env::current_dir()?];
         let mut releases = Vec::<Release>::new();
@@ -51,13 +52,11 @@ impl Changelog {
 
         if !versions.is_empty() {
             let buf = versions.join("\n");
-            let mut output = File::create(&output_file_name)?;
             output.write_all(buf.as_bytes())?;
             return Ok(());
         }
 
         let changelog = GitCliffChangelog::new(releases, &config)?;
-        let mut output = File::create(&output_file_name)?;
         let _ = changelog.generate(&mut output);
 
         Ok(())
