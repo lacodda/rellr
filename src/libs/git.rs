@@ -2,7 +2,7 @@ use super::{
     msg::{self, Msg},
     project_config::ProjectConfig,
 };
-use git2::{Error, ObjectType, Reference, Repository, RepositoryInitOptions, ResetType, Signature};
+use git2::{ObjectType, Reference, Repository, RepositoryInitOptions, Signature};
 use std::{fmt, path::Path};
 
 #[derive(Debug, Default, Clone)]
@@ -189,41 +189,6 @@ impl Git {
             self.repo.checkout_tree(&source_commit, None)?;
             self.repo.reference(&target_ref.name().unwrap(), source_commit.id(), true, &log_msg)?;
         }
-
-        Ok(())
-    }
-
-    pub fn reset(&mut self) -> Result<(), git2::Error> {
-        let head = self.repo.head()?;
-        let last_commit_id = head.target().ok_or(Error::from_str("Failed to get last commit"))?;
-        let last_commit = self.repo.find_object(last_commit_id, Some(ObjectType::Commit))?;
-        // let last_commit = self.repo.find_commit(last_commit_id)?;
-
-        let tag_to_remove = format!("v{}", &self.project_config.current);
-        let tag_ref_name = format!("refs/tags/{}", &tag_to_remove);
-        if let Ok(tag) = self.repo.find_reference(&tag_ref_name) {
-            let tag_oid = tag.peel_to_commit()?.id();
-            if tag_oid == last_commit_id {
-                self.repo.tag_delete(&tag_to_remove)?;
-                self.repo.find_reference(head.name().unwrap())?.delete()?;
-                self.repo.reset(&last_commit, ResetType::Hard, None)?;
-            }
-            // return Ok(())
-        }
-
-        // let mut revwalk = self.repo.revwalk()?;
-        // revwalk.push(last_commit_id)?;
-        // let last_commit = revwalk.next().ok_or(Error::from_str("Failed to get last commit"))?;
-        // self.repo.resolve_reference_from_short_name(refname)
-
-        // self.repo.find_reference(head.name().unwrap())?.delete()?;
-        // self.repo.reset(&last_commit, ResetType::Hard, None)?;
-
-        // let tags = self.repo.tag_names(None)?;
-        // let last_tag = tags.iter().last().map(|s| s.unwrap().to_string());
-        // if let Some(tag_name) = last_tag {
-        //     self.repo.tag_delete(&tag_name)?;
-        // }
 
         Ok(())
     }
