@@ -101,7 +101,7 @@ impl Changelog {
         }
 
         // Update tags.
-        let tag = &self.project_config.current;
+        let tag = self.project_config.next.as_ref().unwrap_or(&self.project_config.current);
         if let Some(commit_id) = commits.first().map(|c| c.id().to_string()) {
             match tags.get(&commit_id) {
                 Some(tag) => {

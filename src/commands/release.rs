@@ -14,9 +14,11 @@ use std::path::Path;
 #[command(args_conflicts_with_subcommands = true)]
 pub struct ReleaseArgs {
     project_folder: Option<String>,
+    #[arg(short, long)]
+    only_changelog: bool,
 }
 
-pub fn cmd(_release_args: ReleaseArgs) -> Result<(), Box<dyn Error>> {
+pub fn cmd(release_args: ReleaseArgs) -> Result<(), Box<dyn Error>> {
     let mut project_config = ProjectConfig::get()?;
 
     if project_config.next.is_none() {
@@ -31,6 +33,14 @@ pub fn cmd(_release_args: ReleaseArgs) -> Result<(), Box<dyn Error>> {
         Msg::new(&format!("{}\n{}", msg::FILES_ARE_MISSING, &non_existent_files.join("\n"))).warn().exit()
     }
 
+    // CHANGELOG.md
+    let output_file_name = update_changelog(&project_config)?;
+    paths.push(&output_file_name);
+
+    if release_args.only_changelog {
+        return Ok(());
+    }
+
     let mut git = Git::new(&project_config).merge()?;
     let _ = project_config.next_to_current()?.save();
 
@@ -42,12 +52,6 @@ pub fn cmd(_release_args: ReleaseArgs) -> Result<(), Box<dyn Error>> {
         update_version_in_file(path, &project_name, &version)?;
     }
 
-    // CHANGELOG.md
-    let mut changelog = Changelog::new(&project_config);
-    let _ = changelog.build();
-    let output_file_name = changelog.output_file_name();
-    paths.push(&output_file_name);
-
     // GIT ADD and COMMIT
     paths.push(PROJECT_CONFIG);
     git.commit(paths)?;
@@ -57,6 +61,13 @@ pub fn cmd(_release_args: ReleaseArgs) -> Result<(), Box<dyn Error>> {
     let _ = project_config.publish();
 
     Ok(())
+}
+
+fn update_changelog(project_config: &ProjectConfig) -> Result<String, Box<dyn Error>> {
+    let mut changelog = Changelog::new(&project_config);
+    let _ = changelog.build();
+    let output_file_name = changelog.output_file_name();
+    Ok(output_file_name)
 }
 
 fn update_version_in_file(path: &str, project_name: &str, next_version: &str) -> Result<(), Box<dyn Error>> {
